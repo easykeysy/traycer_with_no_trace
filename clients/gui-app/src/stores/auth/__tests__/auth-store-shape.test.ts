@@ -32,6 +32,16 @@ const forbiddenRawBearerStoreKeys = [
 type Expect<T extends false> = T;
 
 describe("auth-store boundary shape", () => {
+  // Fork (no-account): the store boots into - and can never leave - the
+  // local, account-free `unverified` session. Pinned first, before any test
+  // below mutates the singleton store.
+  it("boots into the local no-account session", () => {
+    const initial = useAuthStore.getState();
+    expect(initial.status).toBe("unverified");
+    expect(initial.profile?.userId).toBe("local");
+    expect(initial.contextMetadata?.userId).toBe("local");
+  });
+
   it("does NOT expose raw bearer fields on AuthState (compile-time guard)", () => {
     type Keys = keyof AuthState;
     type RawBearerKey = (typeof forbiddenRawBearerStoreKeys)[number];
@@ -163,14 +173,19 @@ describe("auth-store: hostRefusedHeldBearer", () => {
     expect(useAuthStore.getState().hostRefusedHeldBearer).toBe(false);
   });
 
-  it("records nothing when the session is signed-out", () => {
+  // Fork (no-account): there is no bare `signed-out` any more - `setSignedOut`
+  // demotes to the local `unverified` session. With no account there is no
+  // validation either, so the cloud verdict stays `unreachable` and the
+  // refusal latch records nothing.
+  it("records nothing for the fork's local session reached via setSignedOut", () => {
     const state = useAuthStore.getState();
     state.setSignedOut();
-    state.setCloudVerdictLoss("session-rejected");
+    expect(useAuthStore.getState().status).toBe("unverified");
+    expect(useAuthStore.getState().profile?.userId).toBe("local");
 
+    state.setCloudVerdictLoss("unreachable");
     state.noteHostRefusedHeldBearer();
 
-    expect(useAuthStore.getState().status).toBe("signed-out");
     expect(useAuthStore.getState().hostRefusedHeldBearer).toBe(false);
   });
 

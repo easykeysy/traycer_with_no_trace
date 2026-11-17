@@ -64,6 +64,7 @@ import { NotificationsSessionProvider } from "@/providers/notifications-session-
 import { ChatRecordsStreamMount } from "@/providers/chat-records-stream-mount";
 import { WorktreeChangedStreamMount } from "@/providers/worktree-changed-stream-mount";
 import { LandingDraftMirrorMount } from "@/hooks/drafts/use-landing-draft-mirror";
+import { ProviderBinaryDetectedToastBridge } from "@/providers/provider-binary-detected-toast-bridge";
 import { ProvidersChangedStreamMount } from "@/providers/providers-changed-stream-mount";
 import { CloudRecoveryDoorbellMount } from "@/providers/cloud-recovery-doorbell-mount";
 import { RateLimitPollProvider } from "@/providers/rate-limit-poll-provider";
@@ -308,6 +309,7 @@ function TraycerAuthenticatedRuntime(props: TraycerAuthenticatedRuntimeProps) {
                                 <HostScopeReady scope="default-host">
                                   <WorktreeChangedStreamMount />
                                   <ProvidersChangedStreamMount />
+                                  <ProviderBinaryDetectedToastBridge />
                                   <ChatRecordsStreamMount />
                                   <LandingDraftMirrorMount />
                                 </HostScopeReady>
