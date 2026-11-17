@@ -11,6 +11,9 @@ import type { HostRpcRegistry } from "@/lib/host";
 import { queryKeys } from "@/lib/query-keys";
 
 /** No configuration is known yet: never mount a configuration's editors. */
+type FailureSnapshot = { failed: boolean; detail: string | null };
+const NO_FAILURE: FailureSnapshot = { failed: false, detail: null };
+
 export function UnresolvedEnvironmentPage(): ReactNode {
   const scope = useHostScopeFor(WINDOW_HOST_SELECTION);
   const queryClient = useQueryClient();
@@ -19,8 +22,8 @@ export function UnresolvedEnvironmentPage(): ReactNode {
     (onChange: () => void) => queryClient.getQueryCache().subscribe(onChange),
     [queryClient],
   );
-  const readFailure = useCallback((): { failed: boolean; detail: string | null } => {
-    if (hostId === null) return { failed: false, detail: null };
+  const readFailure = useCallback((): FailureSnapshot => {
+    if (hostId === null) return NO_FAILURE;
     const state = queryClient.getQueryState(
       queryKeys.hostMethod<HostRpcRegistry, "environment.status">(
         hostId,
@@ -29,14 +32,19 @@ export function UnresolvedEnvironmentPage(): ReactNode {
       ),
     );
     const failed = state?.status === "error" && state.fetchStatus === "idle";
-    if (!failed) return { failed: false, detail: null };
+    if (!failed) return NO_FAILURE;
     const err = state?.error as { message?: unknown } | null | undefined;
     const detail =
       err && typeof err.message === "string" && err.message.trim().length > 0
         ? err.message.trim()
         : null;
-    return { failed: true, detail };
+    return readFailure.cache.failed && readFailure.cache.detail === detail
+      ? readFailure.cache
+      : (readFailure.cache = { failed: true, detail });
   }, [queryClient, hostId]);
+  // Stable snapshot cache for useSyncExternalStore (Object.is comparison).
+  (readFailure as typeof readFailure & { cache: FailureSnapshot }).cache ??=
+    NO_FAILURE;
   const failure = useSyncExternalStore(subscribe, readFailure);
   const retry = (): void => {
     if (hostId === null) return;
