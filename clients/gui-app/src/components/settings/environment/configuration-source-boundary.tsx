@@ -207,10 +207,20 @@ export function ConfigurationSourceBoundary(props: {
       );
     }
     if (list.isError) {
+      const detail =
+        list.error &&
+        typeof (list.error as { message?: unknown }).message === "string" &&
+        (list.error as { message: string }).message.trim().length > 0
+          ? (list.error as { message: string }).message.trim()
+          : null;
       return (
         <div className="p-5">
           <TeamReadFailed
-            message="Couldn't read these settings."
+            message={
+              detail
+                ? `Couldn't read these settings. ${detail}`
+                : "Couldn't read these settings."
+            }
             onRetry={() => void list.refetch()}
           />
         </div>

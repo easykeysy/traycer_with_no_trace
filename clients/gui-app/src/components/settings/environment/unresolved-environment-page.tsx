@@ -19,8 +19,8 @@ export function UnresolvedEnvironmentPage(): ReactNode {
     (onChange: () => void) => queryClient.getQueryCache().subscribe(onChange),
     [queryClient],
   );
-  const readFailed = useCallback((): boolean => {
-    if (hostId === null) return false;
+  const readFailure = useCallback((): { failed: boolean; detail: string | null } => {
+    if (hostId === null) return { failed: false, detail: null };
     const state = queryClient.getQueryState(
       queryKeys.hostMethod<HostRpcRegistry, "environment.status">(
         hostId,
@@ -28,9 +28,16 @@ export function UnresolvedEnvironmentPage(): ReactNode {
         {},
       ),
     );
-    return state?.status === "error" && state.fetchStatus === "idle";
+    const failed = state?.status === "error" && state.fetchStatus === "idle";
+    if (!failed) return { failed: false, detail: null };
+    const err = state?.error as { message?: unknown } | null | undefined;
+    const detail =
+      err && typeof err.message === "string" && err.message.trim().length > 0
+        ? err.message.trim()
+        : null;
+    return { failed: true, detail };
   }, [queryClient, hostId]);
-  const failed = useSyncExternalStore(subscribe, readFailed);
+  const failure = useSyncExternalStore(subscribe, readFailure);
   const retry = (): void => {
     if (hostId === null) return;
     void queryClient.invalidateQueries({
@@ -48,9 +55,16 @@ export function UnresolvedEnvironmentPage(): ReactNode {
       </HostScopeGate>
     );
   }
-  if (failed) {
+  if (failure.failed) {
     return (
-      <TeamReadFailed message="Couldn't read these settings." onRetry={retry} />
+      <TeamReadFailed
+        message={
+          failure.detail
+            ? `Couldn't read these settings. ${failure.detail}`
+            : "Couldn't read these settings."
+        }
+        onRetry={retry}
+      />
     );
   }
   return (

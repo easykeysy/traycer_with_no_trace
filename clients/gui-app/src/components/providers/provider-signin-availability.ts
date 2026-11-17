@@ -25,6 +25,9 @@ import { providerKeyTab } from "@/components/settings/panels/provider-settings-t
  *   only one the user has not selected. The host resolves a sign-in's CLI as
  *   selected -> bundled -> PATH and never falls back to an unselected custom
  *   path, so it resolves nothing until the selection changes.
+ * - `cli-selected-missing`: the user selected a specific custom CLI path but
+ *   that binary is not available yet. Treated as recoverable (it may appear
+ *   later) rather than permanently uninstalled.
  * - `cli-missing`: the host looked and found nothing it can run.
  */
 export type ProviderHostBlock =
@@ -37,6 +40,7 @@ export type ProviderHostBlock =
   | { readonly kind: "pack"; readonly preparing: ProviderPackPreparing }
   | { readonly kind: "cli-checking" }
   | { readonly kind: "cli-selection-unavailable" }
+  | { readonly kind: "cli-selected-missing"; readonly path: string }
   | { readonly kind: "cli-missing" };
 
 /**
@@ -89,6 +93,12 @@ export function providerHostBlock(
     state.availabilityPending ||
     state.candidates.some((candidate) => candidate.versionPending);
   if (checking) return { kind: "cli-checking" };
+  if (state.selected.kind === "custom") {
+    const path = state.selected.path?.trim() ?? "";
+    if (path.length > 0) {
+      return { kind: "cli-selected-missing", path };
+    }
+  }
   return state.candidates.some((candidate) => candidate.available)
     ? { kind: "cli-selection-unavailable" }
     : { kind: "cli-missing" };
@@ -129,6 +139,8 @@ export function providerHostBlockLabel(
       return `Checking for the ${providerLabel} CLI…`;
     case "cli-selection-unavailable":
       return `The selected ${providerLabel} CLI is not available on this host. Choose another under CLI & Args.`;
+    case "cli-selected-missing":
+      return `Waiting for the selected ${providerLabel} CLI at ${block.path}. It will be used automatically when it becomes available.`;
     case "cli-missing":
       return `The ${providerLabel} CLI is not installed on this host.`;
   }
