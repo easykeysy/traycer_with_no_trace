@@ -622,14 +622,9 @@ export class DesktopTrayController {
         label: "Open Logs",
         click: () => this.runCommand("app.openLogs", null),
       },
-      { type: "separator" },
+      // Fork (no-account): no account section and no sign-in/out item; the
+      // app runs without an account, so the tray offers nothing to sign.
       ...accountItems,
-      {
-        label: isSignedIn ? "Sign Out" : "Sign In",
-        enabled: authStatus !== "signing-in",
-        click: () =>
-          this.runCommand(isSignedIn ? "app.signOut" : "app.signIn", null),
-      },
       { type: "separator" },
       ...quitAndStopHostItems,
       {

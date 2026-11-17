@@ -139,13 +139,12 @@ export function admitsLocalPlaneOnShell(input: {
   readonly hasLocalHost: boolean;
   readonly hostRefusedHeldBearer: boolean;
 }): boolean {
-  if (!admitsLocalPlane(input.status)) return false;
-  // Positive statements, not a negation of the other arm: `signed-in` is
-  // admitted on any shell because it can mint the relay credential, and a new
-  // `AuthStatus` member has to be classified here rather than inheriting an
-  // answer from whichever branch it happens to miss.
-  if (input.status === "signed-in") return true;
-  return input.hasLocalHost && !input.hostRefusedHeldBearer;
+  // Fork (no-account): the shell no longer bounces an admitted session back
+  // to the auth surface. Upstream refused an `unverified` session on a
+  // relay-only shell or once the host refused the held bearer; with no
+  // account in the loop there is no bearer to refuse and no auth surface to
+  // fall back to, so the shell admits whatever the plane admits.
+  return admitsLocalPlane(input.status);
 }
 
 /**
@@ -380,9 +379,37 @@ export interface AuthState {
   setInteractiveAttemptFailed(): void;
 }
 
-function signedOutState(
-  cause: SignedOutCause,
-): Pick<
+/**
+ * Fork (no-account): the synthetic identity every session runs under when no
+ * Traycer account exists. The fork removes the sign-in gate, so the store
+ * boots into - and can never leave - an `unverified` local-plane session
+ * carrying this identity: cloud surfaces keep gating on
+ * `status === "signed-in"` and stay dark, while everything that renders
+ * local, disk-served data sees a well-formed admitted session with a
+ * non-null identity (the invariant `admitsLocalPlane` promises).
+ */
+const LOCAL_PROFILE: AuthProfile = {
+  userId: "local",
+  userName: "Local",
+  email: "",
+};
+
+const LOCAL_CONTEXT_METADATA: AuthContextMetadata = {
+  userId: "local",
+  username: "local",
+};
+
+/**
+ * Fork (no-account): the store can no longer project a bare `signed-out`.
+ * Every site that used to demote the session to the sign-in wall instead
+ * lands back on the local plane with the synthetic identity, so the app
+ * never parks the user on an account screen. The `cause` parameter is gone:
+ * `retired` / `attempt-failed` distinguished fates of a REAL account, and
+ * with no account in the loop the distinction has no reader left
+ * (`useAuthIdentityTransition` classifies on identity presence, and the
+ * local identity never drops out).
+ */
+function signedOutState(): Pick<
   AuthState,
   | "status"
   | "signingInAttempt"
@@ -394,11 +421,11 @@ function signedOutState(
   | "hostRefusedHeldBearer"
 > {
   return {
-    status: "signed-out",
+    status: "unverified",
     signingInAttempt: null,
-    signedOutCause: cause,
-    profile: null,
-    contextMetadata: null,
+    signedOutCause: null,
+    profile: LOCAL_PROFILE,
+    contextMetadata: LOCAL_CONTEXT_METADATA,
     shareableTeams: [],
     subscriptionStatus: null,
     hostRefusedHeldBearer: false,
@@ -422,13 +449,15 @@ function coalesceUserName(
 export const useAuthStore = create<AuthState>()((set) => ({
   signInStorageLow: false,
   setSignInStorageLow: (low) => set({ signInStorageLow: low }),
-  status: "signed-out",
+  // Fork (no-account): boot straight into the local plane instead of the
+  // sign-in wall. `AuthService.start()` returns early when no credentials
+  // are stored, so this initial state IS the no-account session; with a
+  // stored account, `setSignedIn` / `setUnverifiedSession` overwrite it.
+  status: "unverified",
   signingInAttempt: null,
-  // The initial `signed-out` is the absence of any identity, which is a
-  // retirement as far as a bridge is concerned: there is nothing to hold.
-  signedOutCause: "retired",
-  profile: null,
-  contextMetadata: null,
+  signedOutCause: null,
+  profile: LOCAL_PROFILE,
+  contextMetadata: LOCAL_CONTEXT_METADATA,
   shareableTeams: [],
   subscriptionStatus: null,
   cloudVerdictLoss: "unreachable",
@@ -518,11 +547,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
     // `applySignedIn` that follows a successful revalidation makes it.
   },
   setSignedOut: () => {
-    set(signedOutState("retired"));
+    set(signedOutState());
     Analytics.getInstance().reset();
   },
   setInteractiveAttemptFailed: () => {
-    set(signedOutState("attempt-failed"));
+    set(signedOutState());
     // The analytics identity is reset exactly as for a retirement: the failed
     // attempt held no verified account, and whatever `unverified` identity
     // recovery re-admits was never `identify`-ed (see `setUnverifiedSession`).

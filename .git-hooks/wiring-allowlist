@@ -1,0 +1,10 @@
+# LAW-11.R3 wiring allowlist - grandfathered paths allowed to diverge from the
+# pinned upstream base (the no-account rewrite). List may only shrink;
+# additions need maintainer sign-off (visible in diffs).
+#
+clients/desktop/src/electron-main/menu/menu-builder.ts
+clients/desktop/src/electron-main/tray/tray.ts
+clients/gui-app/src/components/layout/header/sign-in-button.tsx
+clients/gui-app/src/components/layout/tabs/side-strip/side-strip-foot.tsx
+clients/gui-app/src/stores/auth/__tests__/auth-store-shape.test.ts
+clients/gui-app/src/stores/auth/auth-store.ts

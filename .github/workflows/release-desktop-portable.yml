@@ -1,0 +1,357 @@
+name: release-desktop-portable
+
+# Community-fork desktop packaging. Upstream's signed release pipeline lives in
+# its internal repository (see clients/desktop/RELEASE.md), so the public repo
+# has no desktop builder; this workflow is the fork's dispatch-only equivalent.
+# It builds the Traycer CLI SEA binary and the desktop shell per platform, then
+# publishes unsigned, no-installer artifacts to a GitHub Release:
+#   - Windows portable executable (single .exe, no NSIS/MSI installer)
+#   - Linux AppImage
+#
+# Tag convention (binding-docs/LAW.md LAW-11.R2, enforced by .git-hooks): the
+# release tag is desktop-v<version>-fork.<N>, inheriting the upstream base tag
+# desktop-v<version>. The workflow refuses a version that is not a real
+# upstream tag, requires the upstream base commit to be an ancestor of the
+# build, and derives the next sequential -fork.N (no gaps, no reuse). Bare
+# upstream tag names are never created or re-pointed. Each dispatch therefore
+# publishes a new fork release for the next increment.
+#
+# The build stamps both clients to the production deploy target before
+# compiling (clients/*/scripts/set-deploy-target.cjs) and injects the
+# renderer's build-time localStorage key. Skipping the stamp ships the dev
+# build: the app boots as "Traycer Dev", the bundled CLI is never found (so
+# the host never starts), and the renderer crashes on the unset storage key -
+# a blank window.
+#
+# Dispatch: Actions -> release-desktop-portable -> Run workflow (version, e.g.
+# 1.5.4).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Upstream desktop release to build from (must be a real upstream desktop-v tag, e.g. 1.5.4)"
+        required: false
+        type: string
+        default: "1.5.4"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-desktop-portable
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  windows-portable:
+    name: Windows portable (x64)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          package-manager-cache: false
+          node-version: "24.20.0"
+      - name: Install bun 1.4.4 from the locked tool mirror
+        uses: ./.github/actions/bootstrap-ci-tools
+        with:
+          tools: bun
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: Stamp the CLI deploy target (production)
+        working-directory: clients/traycer-cli
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # Pin the host runtime the CLI installs by default. Upstream's
+          # cli-v<version> release-provenance.json records supportedHostVersion
+          # == the CLI version (verified for 1.5.4); require the matching
+          # upstream host-v<version> tag to exist before pinning.
+          git ls-remote https://github.com/traycerai/traycer.git "refs/tags/host-v${VERSION}" \
+            | grep -q "refs/tags/host-v${VERSION}$" \
+            || { echo "::error::upstream host-v${VERSION} tag not found - cannot pin the CLI host version"; exit 1; }
+          # The stamper requires feed floors "from a verified authority read";
+          # the fork has no feed-authority infrastructure, so pin the weakest
+          # legal floor: 1 accepts every valid current feed (revisions start
+          # at 1) and signatures are still verified at runtime.
+          bun scripts/set-deploy-target.cjs --target=production \
+            --supported-host-version="$VERSION" \
+            --host-feed-floor=1 --cli-feed-floor=1
+      - name: Build the CLI SEA binary (win32-x64)
+        working-directory: clients/traycer-cli
+        env:
+          TRAYCER_CLI_VERSION: ${{ inputs.version }}
+        run: |
+          bun run build:sea
+          bun run smoke:sea
+      - name: Stage the CLI into the desktop bundle resources
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p clients/desktop/resources/cli/win32-x64
+          cp clients/traycer-cli/dist-sea/traycer.exe clients/desktop/resources/cli/win32-x64/traycer.exe
+          printf '{"version":"%s"}\n' "$VERSION" > clients/desktop/resources/cli/win32-x64/version.json
+      - name: Stamp the desktop deploy target (production)
+        working-directory: clients/desktop
+        run: |
+          # Bake the production identity (environment, appName, appId, cloud
+          # URLs) into src/config.ts. Without this the packaged app boots as
+          # the dev build: "Traycer Dev" profile, dev CLI discovery that never
+          # finds the bundled CLI (so no host), and a renderer that crashes on
+          # the unset VITE_DESKTOP_LOCAL_STORAGE_KEY - a blank window.
+          bun scripts/set-deploy-target.cjs --target=production
+      - name: Build the desktop app
+        working-directory: clients/desktop
+        env:
+          # Build-time key for the renderer's encrypted localStorage
+          # (secure-local-storage.ts refuses to package a PROD renderer
+          # without it). A fork-specific random value: this is a public repo,
+          # so it is not a secret - it only must not be the well-known
+          # upstream default string.
+          VITE_DESKTOP_LOCAL_STORAGE_KEY: 8fede474d72d8b3a851d07459be05c49cc8c0ec853617e03fff0770fa4a8ac0e
+        run: bun run build:app
+      - name: Run the prepack checks
+        working-directory: clients/desktop
+        run: |
+          bun run prepack:check-cli
+          bun run prepack:check-icons
+          bun run prepack:check-tray
+      - name: Package the portable executable
+        working-directory: clients/desktop
+        env:
+          VERSION: ${{ inputs.version }}
+        run: bun x electron-builder --win --publish never -c.win.target=portable -c.extraMetadata.version="$VERSION"
+      - name: Verify no test code ships in the consumer build (LAW-19)
+        working-directory: clients/desktop
+        run: |
+          set -euo pipefail
+          hits="$(find dist resources -type f \( -name '*.test.*' -o -name '*.spec.*' -o -path '*__tests__*' -o -name 'vitest.config.*' -o -name 'jest.config.*' -o -name 'playwright.config.*' \) 2>/dev/null | head -n 20 || true)"
+          unpacked="release/win-unpacked"
+          if [ -d "$unpacked" ]; then
+            more="$(find "$unpacked" -type f -not -path '*/node_modules/*' \( -name '*.test.*' -o -name '*.spec.*' -o -path '*__tests__*' \) 2>/dev/null | head -n 20 || true)"
+          else
+            more=""
+          fi
+          if [ -n "$hits" ] || [ -n "$more" ]; then
+            echo "::error::LAW-19: test code found in the consumer build:"
+            printf '%s\n' "$hits" "$more" | sed '/^$/d'
+            exit 1
+          fi
+          echo "LAW-19: no test code in the packaged consumer build"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-windows-portable
+          path: clients/desktop/release/*.exe
+          if-no-files-found: error
+
+  linux-appimage:
+    name: Linux AppImage (x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          package-manager-cache: false
+          node-version: "24.20.0"
+      - name: Install bun 1.4.4 from the locked tool mirror
+        uses: ./.github/actions/bootstrap-ci-tools
+        with:
+          tools: bun
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: Stamp the CLI deploy target (production)
+        working-directory: clients/traycer-cli
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # Pin the host runtime the CLI installs by default. Upstream's
+          # cli-v<version> release-provenance.json records supportedHostVersion
+          # == the CLI version (verified for 1.5.4); require the matching
+          # upstream host-v<version> tag to exist before pinning.
+          git ls-remote https://github.com/traycerai/traycer.git "refs/tags/host-v${VERSION}" \
+            | grep -q "refs/tags/host-v${VERSION}$" \
+            || { echo "::error::upstream host-v${VERSION} tag not found - cannot pin the CLI host version"; exit 1; }
+          # The stamper requires feed floors "from a verified authority read";
+          # the fork has no feed-authority infrastructure, so pin the weakest
+          # legal floor: 1 accepts every valid current feed (revisions start
+          # at 1) and signatures are still verified at runtime.
+          bun scripts/set-deploy-target.cjs --target=production \
+            --supported-host-version="$VERSION" \
+            --host-feed-floor=1 --cli-feed-floor=1
+      - name: Build the CLI SEA binary (linux-x64)
+        working-directory: clients/traycer-cli
+        env:
+          TRAYCER_CLI_VERSION: ${{ inputs.version }}
+        run: |
+          bun run build:sea
+          bun run smoke:sea
+      - name: Stage the CLI into the desktop bundle resources
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p clients/desktop/resources/cli/linux-x64
+          cp clients/traycer-cli/dist-sea/traycer clients/desktop/resources/cli/linux-x64/traycer
+          chmod +x clients/desktop/resources/cli/linux-x64/traycer
+          printf '{"version":"%s"}\n' "$VERSION" > clients/desktop/resources/cli/linux-x64/version.json
+      - name: Stamp the desktop deploy target (production)
+        working-directory: clients/desktop
+        run: |
+          # Bake the production identity (environment, appName, appId, cloud
+          # URLs) into src/config.ts. Without this the packaged app boots as
+          # the dev build: "Traycer Dev" profile, dev CLI discovery that never
+          # finds the bundled CLI (so no host), and a renderer that crashes on
+          # the unset VITE_DESKTOP_LOCAL_STORAGE_KEY - a blank window.
+          bun scripts/set-deploy-target.cjs --target=production
+      - name: Build the desktop app
+        working-directory: clients/desktop
+        env:
+          # Build-time key for the renderer's encrypted localStorage
+          # (secure-local-storage.ts refuses to package a PROD renderer
+          # without it). A fork-specific random value: this is a public repo,
+          # so it is not a secret - it only must not be the well-known
+          # upstream default string.
+          VITE_DESKTOP_LOCAL_STORAGE_KEY: 8fede474d72d8b3a851d07459be05c49cc8c0ec853617e03fff0770fa4a8ac0e
+        run: bun run build:app
+      - name: Run the prepack checks
+        working-directory: clients/desktop
+        run: |
+          bun run prepack:check-cli
+          bun run prepack:check-icons
+          bun run prepack:check-tray
+      - name: Package the AppImage
+        working-directory: clients/desktop
+        env:
+          VERSION: ${{ inputs.version }}
+        run: bun x electron-builder --linux --publish never -c.linux.target=AppImage -c.extraMetadata.version="$VERSION"
+      - name: Verify no test code ships in the consumer build (LAW-19)
+        working-directory: clients/desktop
+        run: |
+          set -euo pipefail
+          hits="$(find dist resources -type f \( -name '*.test.*' -o -name '*.spec.*' -o -path '*__tests__*' -o -name 'vitest.config.*' -o -name 'jest.config.*' -o -name 'playwright.config.*' \) 2>/dev/null | head -n 20 || true)"
+          unpacked="release/linux-unpacked"
+          if [ -d "$unpacked" ]; then
+            more="$(find "$unpacked" -type f -not -path '*/node_modules/*' \( -name '*.test.*' -o -name '*.spec.*' -o -path '*__tests__*' \) 2>/dev/null | head -n 20 || true)"
+          else
+            more=""
+          fi
+          if [ -n "$hits" ] || [ -n "$more" ]; then
+            echo "::error::LAW-19: test code found in the consumer build:"
+            printf '%s\n' "$hits" "$more" | sed '/^$/d'
+            exit 1
+          fi
+          echo "LAW-19: no test code in the packaged consumer build"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-linux-appimage
+          path: clients/desktop/release/*.AppImage
+          if-no-files-found: error
+
+  release:
+    name: Publish desktop-v${{ inputs.version }}-fork.N
+    needs: [windows-portable, linux-appimage]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+      - name: Resolve the fork release tag (LAW-11.R2)
+        id: tag
+        env:
+          VERSION: ${{ inputs.version }}
+          UPSTREAM_URL: https://github.com/traycerai/traycer.git
+        run: |
+          set -euo pipefail
+          base="desktop-v${VERSION}"
+          git fetch --quiet --no-tags "$UPSTREAM_URL" "refs/tags/${base}:refs/law-upstream-base" \
+            || { echo "::error::'${base}' is not a tag on traycerai/traycer - LAW-11.R2 requires fork release tags to inherit a real upstream base tag"; exit 1; }
+          pin_sha="$(sed -n 's/.*pinned base: upstream [^ ]* = \([0-9a-f]\{40\}\).*/\1/p' .git-hooks/upstream-base.manifest | head -n 1)"
+          [ -n "$pin_sha" ] || { echo "::error::cannot read the pinned fork base from .git-hooks/upstream-base.manifest"; exit 1; }
+          git merge-base --is-ancestor "$pin_sha" HEAD \
+            || { echo "::error::fork pinned base ${pin_sha} is not an ancestor of this build - LAW-11.R2 pin rule violated"; exit 1; }
+          max="$(git ls-remote --tags origin "refs/tags/${base}-fork.*" \
+            | grep -oE -- "${base}-fork\.[0-9]+" | grep -oE '[0-9]+$' | sort -n | tail -n 1 || true)"
+          max="${max:-0}"
+          next=$((max + 1))
+          echo "tag=${base}-fork.${next}" >> "$GITHUB_OUTPUT"
+          echo "base_sha=${pin_sha}" >> "$GITHUB_OUTPUT"
+          echo "Fork release tag: ${base}-fork.${next} (pins fork base ${pin_sha}; inherits upstream ${base})"
+      - name: Collect and checksum the artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          exe="$(find artifacts -type f -name '*.exe' | head -n 1)"
+          appimage="$(find artifacts -type f -name '*.AppImage' | head -n 1)"
+          if [ -z "$exe" ] || [ -z "$appimage" ]; then
+            echo "::error::expected one Windows portable .exe and one Linux .AppImage artifact"
+            find artifacts -type f
+            exit 1
+          fi
+          cp "$exe" "$appimage" dist/
+          cd dist
+          sha256sum -- "$(basename "$exe")" "$(basename "$appimage")" > SHA256SUMS.txt
+          ls -la
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          BASE_SHA: ${{ steps.tag.outputs.base_sha }}
+          NOTES: >-
+            Community fork build of traycerai/traycer at commit ${{ github.sha }}
+            (easykeysy/traycer_with_no_trace): the desktop shell runs in a local
+            no-account session and never requires a Traycer account.
+
+
+            Tag ${{ steps.tag.outputs.tag }} inherits the upstream base tag
+            desktop-v${{ inputs.version }} and pins the fork base
+            ${{ steps.tag.outputs.base_sha }} (an ancestor of this build;
+            recorded ruling in binding-docs LAW-11.R2 - upstream rewrote its
+            main history, so the pin is the fork base commit, not the upstream
+            tag commit; bare upstream tags are never re-pointed).
+
+
+            Artifacts (unsigned):
+
+
+            - traycer-desktop-windows-x64.exe - Windows portable executable, no installer
+
+            - traycer-desktop-linux-x86_64.AppImage - Linux AppImage
+
+            - SHA256SUMS.txt - SHA-256 checksums of both
+
+
+            The bundled Traycer CLI fetches its host runtime from the upstream
+            release registry on first run. Not built or signed by Traycer AI.
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Traycer Desktop ${VERSION} - portable no-account build (${TAG})" \
+              --notes "$NOTES"
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'

@@ -376,22 +376,13 @@ function terminalConflictingRole(
 }
 
 function authItem(
-  state: MenuState,
-  actions: MenuBuildActions,
+  _state: MenuState,
+  _actions: MenuBuildActions,
 ): MenuItemConstructorOptions {
-  if (state.authSession.status === "signed-in") {
-    return {
-      label: "Sign Out",
-      click: (_item, browserWindow) =>
-        actions.command("app.signOut", browserWindow ?? null),
-    };
-  }
-  return {
-    label: "Sign In",
-    enabled: state.authSession.status !== "signing-in",
-    click: (_item, browserWindow) =>
-      actions.command("app.signIn", browserWindow ?? null),
-  };
+  // Fork (no-account): the account system is removed - the menu bar carries
+  // no sign-in/out item. The function stays so its call site keeps
+  // compiling; `visible: false` renders nothing at all.
+  return { label: "", visible: false };
 }
 
 /** Empty when this instance runs no local host (`MenuState.offerRestartHost`). */
