@@ -143,6 +143,19 @@ sentence true. A change that gives the person nothing new to configure changes
 no copy. Licence and attribution text goes in a notices file, not in the
 interface.
 
+## Account system (this fork)
+
+This fork runs with **no account system at all** — not even symbolic accounts.
+
+- No account identity may exist: no `signed-in` auth status, no user profile,
+  no subscription, no cloud session projection. `status === "signed-in"` is
+  never reachable; account-gated surfaces fail closed by construction.
+- Account-dependent tests are **inactive** (excluded from the vitest run via
+  `clients/gui-app/vitest.config.ts`). They must not be re-enabled, and no new
+  test may assume an account exists.
+- Account removal work goes in standalone files where possible; edits to
+  upstream paths require a wiring-allowlist entry (LAW-11).
+
 ## Type safety (ESLint — do not bypass)
 
 ```ts

@@ -63,3 +63,5 @@ clients/gui-app/src/stores/tabs/settings-paths.ts
 clients/gui-app/src/components/layout/tabs/__tests__/side-tab-strip.test.tsx
 clients/gui-app/src/components/layout/tabs/__tests__/side-tab-strip-overlay-placement.test.tsx
 clients/gui-app/src/components/settings/team/__tests__/team-computer-unattended-setup.test.tsx
+clients/gui-app/vitest.config.ts
+AGENTS.md
