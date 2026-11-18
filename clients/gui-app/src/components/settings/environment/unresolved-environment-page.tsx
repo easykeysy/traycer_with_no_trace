@@ -33,7 +33,14 @@ export function UnresolvedEnvironmentPage(): ReactNode {
     );
     const failed = state?.status === "error" && state.fetchStatus === "idle";
     if (!failed) return NO_FAILURE;
-    const err = state?.error as { message?: unknown } | null | undefined;
+    const err = state?.error as
+      | { message?: unknown; code?: unknown }
+      | null
+      | undefined;
+    // A host too old to serve `environment.status` is not a failed settings
+    // read: the window still belongs to that computer, whose own pages the
+    // picker falls back to instead of this page.
+    if (err?.code === "E_HOST_UNSUPPORTED") return NO_FAILURE;
     const detail =
       err && typeof err.message === "string" && err.message.trim().length > 0
         ? err.message.trim()

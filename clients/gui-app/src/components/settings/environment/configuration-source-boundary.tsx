@@ -163,6 +163,16 @@ export function ConfigurationSourceBoundary(props: {
     readTransportReadOnly,
   );
   const list = useEnvironmentListQuery(client, true);
+  /**
+   * A host that predates `environment.list` lists nothing; that is not a read
+   * failure. Its own pages are the source (`ConfigurationSourceContext`'s
+   * default), and offering a retry that can only fail the same way would hide
+   * settings the host can still show.
+   */
+  const listUnsupported =
+    list.isError &&
+    (list.error as { code?: unknown } | null | undefined)?.code ===
+      "E_HOST_UNSUPPORTED";
   const descriptor = list.data?.environments.find((entry) =>
     target.kind === "team"
       ? entry.environmentId === target.environmentId &&
@@ -196,7 +206,7 @@ export function ConfigurationSourceBoundary(props: {
   });
 
   if (descriptor === undefined) {
-    if (list.isPending) {
+    if (list.isPending && !listUnsupported) {
       return (
         <AgentSpinningDots
           className={undefined}
@@ -206,7 +216,7 @@ export function ConfigurationSourceBoundary(props: {
         />
       );
     }
-    if (list.isError) {
+    if (list.isError && !listUnsupported) {
       const detail =
         list.error &&
         typeof (list.error as { message?: unknown }).message === "string" &&

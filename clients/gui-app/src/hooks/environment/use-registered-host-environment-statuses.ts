@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   queryOptions,
   useQueries,
@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import type { EnvironmentStatusResponseV12 } from "@traycer/protocol/host/environment-schemas";
 import type { HostRpcError } from "@traycer-clients/shared/host-transport/host-messenger";
+import { useHostNegotiatedMethodVersions } from "@/hooks/host/use-host-negotiated-method-version";
 import { hostClientUnavailableError } from "@/hooks/host/use-host-query";
 import { useHostBinding, type HostRpcRegistry } from "@/lib/host";
 import { resolveNamedHostClient } from "@/lib/host/binding-host-client";
@@ -32,8 +33,9 @@ const STATUS_STALE_MS = 5 * 60_000;
  * status (the Personal frame, the Overview) keeps that host's row current
  * here, and this read never duplicates it.
  *
- * Map entries are `null` until a host answers, and for a host that cannot
- * (`connectable` false is never dialled).
+ * Map entries are `null` until a host answers, and for a host that cannot:
+ * one that is not `connectable` is never dialled, and one whose handshake
+ * does not advertise `environment.status` is never asked.
  */
 export function useRegisteredHostEnvironmentStatuses(
   hosts: ReadonlyArray<{
@@ -42,6 +44,13 @@ export function useRegisteredHostEnvironmentStatuses(
   }>,
 ): ReadonlyMap<string, EnvironmentStatusResponseV12 | null> {
   const binding = useHostBinding();
+  const hostIds = useMemo(() => hosts.map((host) => host.hostId), [hosts]);
+  // The same gate `useEnvironmentStatusRead` applies: a host whose handshake
+  // does not advertise `environment.status` is never asked. Without it an
+  // older host answers every entry with `E_HOST_UNSUPPORTED`, an error no
+  // retry can clear, and the Environment page reads it as a failed settings
+  // read.
+  const versions = useHostNegotiatedMethodVersions(hostIds, METHOD);
   const combine = useCallback(
     (
       results: Array<
@@ -61,7 +70,9 @@ export function useRegisteredHostEnvironmentStatuses(
       environmentStatusQueryOptions(
         binding,
         host.hostId,
-        host.connectable && binding !== null,
+        host.connectable &&
+          binding !== null &&
+          versions.get(host.hostId) === true,
       ),
     ),
     combine,

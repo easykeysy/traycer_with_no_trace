@@ -207,16 +207,38 @@ export function environmentPickerModel(input: {
   }
   const windowRow =
     localRows.find((row) => row.hostId === input.windowHostId) ?? null;
+  const windowStatus =
+    input.windowHostId === null
+      ? null
+      : (input.statuses.get(input.windowHostId) ?? null);
+  const windowVersion =
+    input.windowHostId === null
+      ? null
+      : (input.versions.get(input.windowHostId) ?? null);
+  /**
+   * A host that answered nothing because it predates `environment.status` is
+   * still this window's own computer. This fork runs without an account, so
+   * there is no cloud configuration to fall back to: its own pages - shown
+   * read-only with an update note (`HostPageFrame`) - are what Settings opens
+   * on. Reading that silence as "unknown" would strand the window on the
+   * unresolved page, whose only offer is a retry that cannot succeed.
+   */
+  const windowRunsNothing = windowVersion === false && windowStatus === null;
   const windowStatusKnown =
     input.windowHostId === null ||
     (input.hosts.some((host) => host.hostId === input.windowHostId) &&
-      (input.statuses.get(input.windowHostId) ?? null) !== null);
+      (windowStatus !== null || windowRunsNothing));
   let defaultPick = UNRESOLVED_PICK;
   if (windowStatusKnown) {
-    defaultPick =
-      windowRow !== null && !windowRow.needsUpdate && windowRow.defaultsToLocal
-        ? { kind: "local", hostId: windowRow.hostId, hostName: windowRow.name }
-        : PERSONAL_PICK;
+    const windowLocalPick: EnvironmentPick | null =
+      windowRow !== null && (windowRow.defaultsToLocal || windowRunsNothing)
+        ? {
+            kind: "local",
+            hostId: windowRow.hostId,
+            hostName: windowRow.name,
+          }
+        : null;
+    defaultPick = windowLocalPick ?? PERSONAL_PICK;
   }
   return { localRows, defaultPick };
 }
