@@ -388,15 +388,24 @@ export interface AuthState {
  * local, disk-served data sees a well-formed admitted session with a
  * non-null identity (the invariant `admitsLocalPlane` promises).
  */
+/**
+ * Fork (no-account): there is no identity. Not a symbolic one, not a
+ * placeholder account - an anonymous local session with no user id, no name
+ * and no email, so nothing in the app can render, name, or email a person and
+ * nothing account-scoped has a key to hang off.
+ *
+ * Non-null because the `admitsLocalPlane` invariant promises an object to the
+ * dozens of surfaces that read one; empty because there is nothing to say.
+ */
 const LOCAL_PROFILE: AuthProfile = {
-  userId: "local",
-  userName: "Local",
+  userId: "",
+  userName: "",
   email: "",
 };
 
 const LOCAL_CONTEXT_METADATA: AuthContextMetadata = {
-  userId: "local",
-  username: "local",
+  userId: "",
+  username: "",
 };
 
 /**
@@ -472,13 +481,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
         : state,
     );
   },
-  setSigningIn: (attempt: SignInAttemptKind) => {
-    set({
-      status: "signing-in",
-      signingInAttempt: attempt,
-      signedOutCause: null,
-      hostRefusedHeldBearer: false,
-    });
+  // Fork (no-account): there is no sign-in to start. Any attempt collapses
+  // back onto the local session rather than opening a flow that does not
+  // exist.
+  setSigningIn: (_attempt: SignInAttemptKind) => {
+    set(signedOutState());
   },
   setSignedIn: (
     profile: AuthProfile,
@@ -494,26 +501,19 @@ export const useAuthStore = create<AuthState>()((set) => ({
     // downstream; otherwise startup consumers throw on it:
     // `readFirstName(userName).replace(...)` in HomeHero and
     // `computeInitials(userName).trim()` in the header avatar.
-    const safeProfile = {
-      ...profile,
-      userName: coalesceUserName(profile.userName, profile.email),
-    };
-    set({
-      status: "signed-in",
-      signingInAttempt: null,
-      signedOutCause: null,
-      hostRefusedHeldBearer: false,
-      profile: safeProfile,
-      contextMetadata,
-      shareableTeams,
-    });
-    // Email is the one person property sent (deliberate product decision so
-    // PostHog dashboards can look users up); the final sanitizer drops
-    // everything else the SDK stages on $identify.
-    Analytics.getInstance().identify(contextMetadata.userId, safeProfile.email);
+    // Fork (no-account): there is no account to project. Every signed-in
+    // projection lands back on the anonymous local session, so
+    // `status === "signed-in"` is never true anywhere in the app and no
+    // entitlement, subscription or profile can be claimed.
+    void profile;
+    void contextMetadata;
+    void shareableTeams;
+    set(signedOutState());
   },
-  setSubscriptionStatus: (status: SubscriptionStatus | null) => {
-    set({ subscriptionStatus: status });
+  // Fork (no-account): entitlement is a server verdict about an account, and
+  // there is none to hold.
+  setSubscriptionStatus: (_status: SubscriptionStatus | null) => {
+    set({ subscriptionStatus: null });
   },
   setUnverifiedSession: (
     profile: AuthProfile,
@@ -523,28 +523,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
     // profile comes off the credentials FILE, which a stale writer can leave
     // partial. `readFirstName(userName)` in HomeHero throws on an absent one,
     // and HomeHero is on the very surface this state exists to render.
-    set({
-      status: "unverified",
-      signingInAttempt: null,
-      signedOutCause: null,
-      // `AuthService` re-derives it for the bearer it has just projected.
-      hostRefusedHeldBearer: false,
-      profile: {
-        ...profile,
-        userName: coalesceUserName(profile.userName, profile.email),
-      },
-      contextMetadata,
-      // No server verdict is held, so no team list and no entitlement can be
-      // projected. Sharing surfaces read `shareableTeams` and gate themselves
-      // on emptiness; entitlement-gated surfaces read `subscriptionStatus`
-      // and gate themselves on null. Both therefore fail CLOSED here without
-      // needing to know this state exists.
-      shareableTeams: [],
-      subscriptionStatus: null,
-    });
-    // Deliberately no `Analytics.identify`: identification is a claim about a
-    // verified account, and this identity was read off local disk. The
-    // `applySignedIn` that follows a successful revalidation makes it.
+    // Fork (no-account): a stored session's identity is discarded rather than
+    // projected. Whatever `AuthService` read off the credentials file, there
+    // is no account in this build to name.
+    void profile;
+    void contextMetadata;
+    set(signedOutState());
   },
   setSignedOut: () => {
     set(signedOutState());

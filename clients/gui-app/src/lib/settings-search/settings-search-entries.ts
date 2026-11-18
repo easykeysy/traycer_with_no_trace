@@ -11,8 +11,6 @@ import { ALERTS } from "@/components/settings/panels/alerts-settings.definitions
 import { APP_DIAGNOSTICS } from "@/components/settings/panels/app-diagnostics-settings.definitions";
 import { APP_NOTIFICATIONS } from "@/components/settings/panels/app-notifications-settings.definitions";
 import { APPEARANCE } from "@/components/settings/panels/appearance-settings.definitions";
-import { DELETE_ACCOUNT } from "@/components/settings/panels/delete-account-settings.definitions";
-import { DEVICES } from "@/components/settings/panels/devices-sessions.definitions";
 import { HOST_DIAGNOSTICS } from "@/components/settings/panels/diagnostics-settings.definitions";
 import { FALLBACK } from "@/components/settings/panels/fallback-settings.definitions";
 import { GETTING_STARTED } from "@/components/settings/panels/getting-started-settings.definitions";
@@ -23,8 +21,6 @@ import { GENERAL } from "@/components/settings/panels/general-settings.definitio
 import { HOST_OVERVIEW } from "@/components/settings/panels/host-overview.definitions";
 import { KEYBINDINGS } from "@/components/settings/panels/keybindings-settings.definitions";
 import { LAYOUT } from "@/components/settings/panels/layout-settings.definitions";
-import { LINK_PHONE } from "@/components/settings/panels/link-phone.definitions";
-import { HOST_NOTIFICATIONS } from "@/components/settings/panels/notifications-settings.definitions";
 import { OPENING_BEHAVIOR } from "@/components/settings/panels/opening-behavior.definitions";
 import { PERMISSIONS } from "@/components/settings/panels/permissions-settings.definitions";
 import { PROVIDERS } from "@/components/settings/panels/providers-settings.definitions";
@@ -34,8 +30,6 @@ import { MACHINE_SETUP } from "@/components/settings/panels/machine-setup.defini
 import { MCP_SERVERS } from "@/components/settings/panels/mcp-servers.definitions";
 import { SKILLS } from "@/components/settings/panels/skills.definitions";
 import { SHELL } from "@/components/settings/panels/shell-settings.definitions";
-import { USAGE } from "@/components/settings/panels/usage-settings.definitions";
-import { CREDITS } from "@/components/settings/environment/credits-page.definitions";
 import { SANDBOXES } from "@/components/settings/environment/sandboxes-page.definitions";
 import { STORAGE } from "@/components/settings/environment/storage-page.definitions";
 import { MEMBERS } from "@/components/settings/environment/members-page.definitions";
@@ -75,12 +69,6 @@ export const SETTINGS_SEARCH_COLLECTIONS: ReadonlyArray<AnySettingsSectionCollec
     STORAGE,
     MEMBERS,
     MACHINE_SETUP,
-    DEVICES,
-    LINK_PHONE,
-    USAGE,
-    CREDITS,
-    HOST_NOTIFICATIONS,
-    DELETE_ACCOUNT,
     HOST_OVERVIEW,
     WORKTREES,
     HOST_DIAGNOSTICS,

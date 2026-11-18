@@ -109,10 +109,8 @@ export type AnalyticsSettingsSection =
   | "app-diagnostics"
   | "app-notifications"
   | "appearance"
-  | "delete-account"
   | "dev-artifact-proof"
   | "dev-canvas-proof"
-  | "devices"
   | "diagnostics"
   | "fallback"
   | "general"
@@ -120,7 +118,6 @@ export type AnalyticsSettingsSection =
   | "browser"
   | "browser-agent-access"
   | "agent-memories"
-  | "credits"
   | "mcp-servers"
   | "members"
   | "skills"
@@ -129,8 +126,6 @@ export type AnalyticsSettingsSection =
   | "host"
   | "keybindings"
   | "layout"
-  | "link-phone"
-  | "notifications"
   | "opening-behavior"
   | "permissions"
   | "providers"
@@ -138,7 +133,6 @@ export type AnalyticsSettingsSection =
   | "secrets"
   | "shell"
   | "storage"
-  | "usage"
   | "worktrees";
 
 export type AnalyticsArtifactKind =
@@ -1503,10 +1497,8 @@ const ANALYTICS_SETTINGS_SECTIONS = new Set<string>(
     "app-diagnostics": true,
     "app-notifications": true,
     appearance: true,
-    "delete-account": true,
     "dev-artifact-proof": true,
     "dev-canvas-proof": true,
-    devices: true,
     diagnostics: true,
     fallback: true,
     general: true,
@@ -1521,8 +1513,6 @@ const ANALYTICS_SETTINGS_SECTIONS = new Set<string>(
     host: true,
     keybindings: true,
     layout: true,
-    "link-phone": true,
-    notifications: true,
     "opening-behavior": true,
     permissions: true,
     providers: true,
@@ -1531,8 +1521,6 @@ const ANALYTICS_SETTINGS_SECTIONS = new Set<string>(
     secrets: true,
     shell: true,
     storage: true,
-    usage: true,
-    credits: true,
     worktrees: true,
   } satisfies Record<AnalyticsSettingsSection, true>),
 );

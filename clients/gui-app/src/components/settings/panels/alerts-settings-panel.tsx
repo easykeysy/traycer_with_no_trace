@@ -2,10 +2,8 @@ import { ALERTS } from "@/components/settings/panels/alerts-settings.definitions
 import { PushPermissionSection } from "@/components/settings/panels/push-permission-section";
 import { SystemNotificationSettingsSection } from "@/components/settings/panels/system-notification-settings-section";
 import { SettingsGroup } from "@/components/settings/settings-group";
-import { SettingsRow } from "@/components/settings/settings-row";
 import { SettingsPanelShell } from "@/components/settings/settings-panel-shell";
 import { Button } from "@/components/ui/button";
-import { navigateToSettingsSection } from "@/lib/settings-navigation";
 
 export function AlertsSettingsPanel() {
   return (
@@ -26,21 +24,6 @@ export function AlertsSettingsPanel() {
       >
         <SystemNotificationSettingsSection />
         <PushPermissionSection />
-        <SettingsRow
-          row={ALERTS.definitions.notificationEvents}
-          control={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                navigateToSettingsSection("notifications");
-              }}
-            >
-              Open Notifications
-            </Button>
-          }
-        />
       </SettingsGroup>
     </SettingsPanelShell>
   );

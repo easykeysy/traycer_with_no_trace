@@ -1,12 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
-  Bell,
   Bot,
   BrainCircuit,
   Boxes,
   Cloud,
-  Coins,
   FileText,
   GitBranch,
   HardDrive,
@@ -17,20 +15,16 @@ import {
   LockKeyhole,
   MessageSquareDot,
   MousePointerClick,
-  LineChart,
   Palette,
   Plug,
   PanelBottom,
   PanelsTopLeft,
-  QrCode,
   Server,
   Sparkles,
   Wrench,
-  ShieldCheck,
   Settings as SettingsIcon,
   TerminalSquare,
   Users,
-  UserX,
   Volume2,
   Waypoints,
 } from "lucide-react";
@@ -66,18 +60,13 @@ export type SettingsSectionId =
   | "shell"
   | "worktrees"
   | "host"
-  | "devices"
-  | "link-phone"
-  | "delete-account"
   // Two sections, both labelled "Diagnostics", and the group they sit in is
   // what distinguishes them — `app-diagnostics` is this window's own logging
   // and heap, `diagnostics` is the selected host's. The host one keeps the
   // bare id because ids are a compatibility surface (see below) and it is the
   // one already in remembered tab paths and `/settings/diagnostics` bookmarks.
   | "app-diagnostics"
-  | "diagnostics"
-  | "usage"
-  | "credits";
+  | "diagnostics";
 
 /**
  * The Fallback section's id, as a value.
@@ -115,12 +104,7 @@ export const FALLBACK_SETTINGS_SECTION_ID =
  * picker names the machine its pages show. Account pages read through the
  * window's own host.
  */
-export type SettingsSectionGroupId =
-  | "guide"
-  | "app"
-  | "account"
-  | "personal"
-  | "host";
+export type SettingsSectionGroupId = "guide" | "app" | "personal" | "host";
 
 export interface SettingsSectionGroup {
   readonly id: SettingsSectionGroupId;
@@ -128,15 +112,20 @@ export interface SettingsSectionGroup {
 }
 
 /**
- * Getting started leads in its own group, followed by Application, Account
- * and Environment. The host group goes last because it is the only one whose
+ * Getting started leads in its own group, followed by Application and
+ * Environment. The host group goes last because it is the only one whose
  * contents are scoped — it carries the picker, and everything beneath the
  * picker belongs to whichever host that picker names.
+ *
+ * Fork (no-account): there is no Account group. The fork runs with no Traycer
+ * account at all, so the pages that read or acted on one — Sessions, Link
+ * mobile app, Usage, Credits, Notifications, Delete account — were removed
+ * from this table outright rather than hidden, and their ids left the
+ * `SettingsSectionId` union with them.
  */
 export const SETTINGS_SECTION_GROUPS: ReadonlyArray<SettingsSectionGroup> = [
   { id: "guide", label: "Guide" },
   { id: "app", label: "Application" },
-  { id: "account", label: "Account" },
   // The id stays `personal` (ids are a compatibility surface); the group is
   // the Environment dropdown's: its picker names the configuration the pages
   // below it show, Personal, a team, or a computer that has not moved.
@@ -269,59 +258,9 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     icon: Activity,
     group: "app",
   },
-  {
-    id: "devices",
-    label: "Sessions",
-    icon: ShieldCheck,
-    group: "account",
-  },
-  // Account, like Sessions: the code it mints signs the PHONE into the
-  // account, regardless of which host this window looks at.
-  {
-    id: "link-phone",
-    label: "Link mobile app",
-    icon: QrCode,
-    group: "account",
-  },
-  // Account, not Host: what this reports is the ACCOUNT's token and cost
-  // spend, with the host as one filter INSIDE the page (defaulting to all of
-  // them). Under the sidebar's host picker it would have put two competing
-  // host scopes on one screen, with the outer one unable to describe the
-  // number the inner one produced. It still reads through a host client -
-  // every RPC does - but that is a transport fact, not a scope one.
-  {
-    id: "usage",
-    label: "Usage",
-    icon: LineChart,
-    group: "account",
-  },
-  // Account, beside Usage: credits are the person's to add and spend. The
-  // page is E8's (`panels/credits-settings-panel`).
-  {
-    id: "credits",
-    label: "Credits",
-    icon: Coins,
-    group: "account",
-  },
-  // Event policy and automation. Different controls than Application → Sounds
-  // and Alerts, so it keeps the generic word and the bell.
-  {
-    id: "notifications",
-    label: "Notifications",
-    icon: Bell,
-    group: "account",
-  },
-  // Offered ONLY by the installed mobile app (`MOBILE_APP_ONLY_SECTION_IDS`
-  // below). Last in its group because it is the group's one irreversible
-  // action, and because appending it keeps Account contiguous without moving
-  // a single desktop row: the desktop list does not contain it at all, so no
-  // existing leader digit shifts there.
-  {
-    id: "delete-account",
-    label: "Delete account",
-    icon: UserX,
-    group: "account",
-  },
+  // Fork (no-account): the Account group is gone, and with it Sessions, Link
+  // mobile app, Usage, Credits, Notifications and Delete account. Each of them
+  // read or acted on a Traycer account, which this build does not have.
   // The Environment group (id `personal`): the configuration the Environment
   // dropdown picks. Personal's pages read through the window's own host and
   // what they save applies wherever the person signs in; a Local row's read
@@ -524,7 +463,6 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
  */
 const MOBILE_APP_OMITTED_SECTION_IDS: ReadonlySet<SettingsSectionId> = new Set([
   "keybindings",
-  "link-phone",
   "app-diagnostics",
 ]);
 
@@ -544,9 +482,9 @@ const MOBILE_APP_OMITTED_SECTION_IDS: ReadonlySet<SettingsSectionId> = new Set([
  * questions and a single `availableOn` column would have to be read in both
  * directions at every call site.
  */
-const MOBILE_APP_ONLY_SECTION_IDS: ReadonlySet<SettingsSectionId> = new Set([
-  "delete-account",
-]);
+// Fork (no-account): empty. Its one member was Delete account, which left the
+// table with the rest of the Account group.
+const MOBILE_APP_ONLY_SECTION_IDS: ReadonlySet<SettingsSectionId> = new Set([]);
 
 /**
  * Proof pages for developers, offered in navigation by dev builds only. They

@@ -59,12 +59,6 @@ const CARDS = [
     row: GETTING_STARTED.definitions.install,
     action: "Download",
   },
-  {
-    id: "credits",
-    icon: Coins,
-    row: GETTING_STARTED.definitions.credits,
-    action: "Add credits",
-  },
 ] as const;
 
 export type GettingStartedCard = (typeof CARDS)[number];
@@ -108,8 +102,6 @@ function stepIsDone(
       return facts.thisComputersMove === "moved";
     case "install":
       return facts.hasSecondPersonalComputer;
-    case "credits":
-      return facts.creditsAboveZero;
   }
 }
 
@@ -125,7 +117,6 @@ function cardApplies(
   card: GettingStartedCard,
   facts: GettingStartedFacts,
 ): boolean {
-  if (card.id === "credits") return facts.sandboxStaged;
   if (card.id === "move") {
     const move = facts.thisComputersMove;
     return move === "not_moved" || move === "moved";

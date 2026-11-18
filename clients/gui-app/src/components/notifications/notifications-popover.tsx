@@ -569,7 +569,10 @@ export function NotificationsPopover(
   const handleOpenSettings = useCallback(() => {
     onNavigate();
     openSettings({
-      section: "notifications",
+      // Fork (no-account): the Account → Notifications page is gone with the
+      // account group; its local half (how this app's alerts reach this
+      // computer) is Application → Alerts.
+      section: "alerts",
       resetToGeneral: false,
       tab: null,
       draft: null,

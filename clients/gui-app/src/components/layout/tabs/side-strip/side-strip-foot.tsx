@@ -2,7 +2,7 @@ import type { ComponentPropsWithRef, ReactNode } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import type { HostLeaseStatus } from "@traycer-clients/shared/host-selection/selection-authority-contract";
 import type { HostStatusCrossHostMessaging } from "@traycer/protocol/host/status/contracts";
-import { UserMenu, UserMenuAvatar } from "@/components/auth/user-menu";
+import { UserMenuAvatar } from "@/components/auth/user-menu";
 import { AppUpdateHeaderButton } from "@/components/layout/header/app-update-button";
 import {
   HeaderResourceRegion,
@@ -19,7 +19,6 @@ import { useHostCrossHostMessaging } from "@/hooks/host/use-host-cross-host-mess
 import { useHostDirectoryEntry } from "@/hooks/host/use-host-directory-entry";
 import { useHostLease } from "@/hooks/host/use-host-lease";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/auth/auth-store";
 import type { SideTabRowVariant } from "./side-tab-row";
 import {
   SIDE_STRIP_ACCOUNT_ROW_CLASS,
@@ -59,7 +58,8 @@ export function SideStripFoot(props: {
     >
       <AppUpdateHeaderButton layout={collapsed ? "icon" : "row"} />
       {mobileForm === null ? <SideStripReadings collapsed={collapsed} /> : null}
-      <SideStripAccount variant={props.variant} />
+      {/* Fork (no-account): no account row. There is no account to open a
+          menu for, so the strip ends with its readings. */}
     </div>
   );
 }
@@ -143,34 +143,6 @@ function useRegionDrawn(regionId: "usageLimits" | "resourceMonitor"): boolean {
   return shown || ghost;
 }
 
-function SideStripAccount(props: {
-  readonly variant: SideTabRowVariant;
-}): ReactNode {
-  const profile = useAuthStore((state) => state.profile);
-  const isSignedIn = useAuthStore((state) => state.status === "signed-in");
-  // Fork (no-account): no sign-in affordance in the strip. Without an
-  // account there is no user menu either, so the account row draws nothing.
-  if (!isSignedIn || profile === null) {
-    return null;
-  }
-  const avatarUrl = profile.avatarUrl ?? null;
-  return (
-    <UserMenu
-      userName={profile.userName}
-      email={profile.email}
-      avatarUrl={avatarUrl}
-      showAppSettings
-      trigger={
-        <AccountRowButton
-          variant={props.variant}
-          userName={profile.userName}
-          email={profile.email}
-          avatarUrl={avatarUrl}
-        />
-      }
-    />
-  );
-}
 
 /**
  * The account row: the avatar with the host's health dot, the name, and the

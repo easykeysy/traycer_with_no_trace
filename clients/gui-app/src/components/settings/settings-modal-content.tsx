@@ -20,9 +20,6 @@ import { KeybindingsSettingsPanel } from "@/components/settings/panels/keybindin
 import { ShellSettingsPanel } from "@/components/settings/panels/shell-settings-panel";
 import { WorktreesSettingsPanel } from "@/components/settings/panels/worktrees-settings-panel";
 import { HostSettingsPanel } from "@/components/settings/panels/host-settings-panel";
-import { DevicesSessionsPanel } from "@/components/settings/panels/devices-sessions-panel";
-import { LinkPhonePanel } from "@/components/settings/panels/link-phone-panel";
-import { DeleteAccountSettingsPanel } from "@/components/settings/panels/delete-account-settings-panel";
 import { AppDiagnosticsSettingsPanel } from "@/components/settings/panels/app-diagnostics-settings-panel";
 import { AppNotificationsSettingsPanel } from "@/components/settings/panels/app-notifications-settings-panel";
 import { AlertsSettingsPanel } from "@/components/settings/panels/alerts-settings-panel";
@@ -37,9 +34,6 @@ import { AgentsSettingsPanel } from "@/components/settings/panels/agents-setting
 import { AgentMemoriesSettingsPanel } from "@/components/settings/panels/agent-memories-settings-panel";
 import { PermissionsSettingsPanel } from "@/components/settings/panels/permissions-settings-panel";
 import { FallbackSettingsPanel } from "@/components/settings/panels/fallback-settings-panel";
-import { NotificationsSettingsPanel } from "@/components/settings/panels/notifications-settings-panel";
-import { UsageSettingsPanel } from "@/components/settings/panels/usage-settings-panel";
-import { CreditsSettingsPanel } from "@/components/settings/panels/credits-settings-panel";
 import { SandboxesSettingsPanel } from "@/components/settings/environment/sandboxes-page-slot";
 import { EnvironmentPickUpkeep } from "@/components/settings/environment-picker";
 import { LocalMovePageOr } from "@/components/settings/environment/local-move-page";
@@ -126,7 +120,6 @@ const SETTINGS_PANELS = {
   skills: SkillsSettingsPanel,
   "agent-definitions": AgentsSettingsPanel,
   "machine-setup": MachineSetupSettingsPanel,
-  notifications: NotificationsSettingsPanel,
   permissions: PermissionsSettingsPanel,
   "agent-memories": AgentMemoriesSettingsPanel,
   agents: AgentsSettingsPanel,
@@ -135,13 +128,8 @@ const SETTINGS_PANELS = {
   shell: ShellSettingsPanel,
   worktrees: WorktreesSettingsPanel,
   host: HostSettingsPanel,
-  devices: DevicesSessionsPanel,
-  "link-phone": LinkPhonePanel,
-  "delete-account": DeleteAccountSettingsPanel,
   "app-diagnostics": AppDiagnosticsSettingsPanel,
   diagnostics: DiagnosticsSettingsPanel,
-  usage: UsageSettingsPanel,
-  credits: CreditsSettingsPanel,
   sandboxes: SandboxesSettingsPanel,
   storage: StorageSettingsPanel,
   members: MembersSettingsPanel,

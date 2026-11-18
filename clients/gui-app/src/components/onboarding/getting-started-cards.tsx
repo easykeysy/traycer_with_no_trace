@@ -120,9 +120,6 @@ function openGettingStartedCard(
         }
       })();
       return;
-    case "credits":
-      navigateToSettingsSection("credits");
-      return;
   }
 }
 

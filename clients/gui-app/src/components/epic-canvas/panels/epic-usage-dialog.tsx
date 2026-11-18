@@ -5,7 +5,6 @@ import type { HostRpcError } from "@traycer-clients/shared/host-transport/host-m
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { HostRpcRegistry } from "@/lib/host";
-import { useSystemTabModalActions } from "@/stores/tabs/use-system-tab-modal";
 import { useUsageImageExport } from "@/hooks/usage-analytics/use-usage-image-export";
 import {
   buildUsageSummaryRequest,
@@ -107,7 +106,6 @@ export function EpicUsageDialog(props: EpicUsageDialogProps): ReactNode {
     [epicId, windowDays],
   );
   const query = useUsageSummaryForClient(client, request, open, false);
-  const { openSettings } = useSystemTabModalActions();
   // The capture region is found by data attribute under this dialog's own
   // content node at click time, not held as a threaded RefObject - the
   // React Compiler's ref rules reject a ref object travelling through
@@ -173,25 +171,6 @@ export function EpicUsageDialog(props: EpicUsageDialogProps): ReactNode {
                   buttonClassName="max-[28rem]:w-full"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="max-[28rem]:w-full"
-                data-testid="epic-usage-view-full-dashboard"
-                onClick={() => {
-                  onOpenChange(false);
-                  openSettings({
-                    section: "usage",
-                    resetToGeneral: false,
-                    tab: null,
-                    draft: null,
-                    hostId: null,
-                  });
-                }}
-              >
-                View full usage →
-              </Button>
             </>
           }
         >
