@@ -8,6 +8,7 @@ import {
 import type { HostScope } from "@/components/settings/host-scope/use-host-scope";
 import { useRegisteredHostEnvironmentStatuses } from "@/hooks/environment/use-registered-host-environment-statuses";
 import { useHostNegotiatedMethodVersions } from "@/hooks/host/use-host-negotiated-method-version";
+import { useAuthStore } from "@/stores/auth/auth-store";
 
 /**
  * The Environment dropdown's model and the `environment.status` of each
@@ -35,6 +36,9 @@ export function useEnvironmentStatusModel(scope: HostScope): {
     windowHost !== undefined && windowHost.sandbox !== null
       ? null
       : scope.activeHostId;
+  // Personal is the account's cloud configuration: only an account can open
+  // it, so a window with no host yet waits for its own instead of showing it.
+  const accountSignedIn = useAuthStore((state) => state.status === "signed-in");
   const picker = useMemo(
     () =>
       environmentPickerModel({
@@ -42,8 +46,9 @@ export function useEnvironmentStatusModel(scope: HostScope): {
         statuses,
         versions,
         windowHostId,
+        accountSignedIn,
       }),
-    [hosts, statuses, versions, windowHostId],
+    [hosts, statuses, versions, windowHostId, accountSignedIn],
   );
   return { picker, statuses };
 }

@@ -195,6 +195,13 @@ export function environmentPickerModel(input: {
   readonly versions: ReadonlyMap<string, NegotiatedMethodVersion>;
   /** This window's own host, whose Local row is the default pick. */
   readonly windowHostId: string | null;
+  /**
+   * Whether a Traycer account is signed in (default: yes, the shape every
+   * caller had before accounts could be absent). Personal is an account's
+   * cloud configuration; with no account there is nothing to open on it, so
+   * an unknown host waits instead of claiming it.
+   */
+  readonly accountSignedIn?: boolean;
 }): EnvironmentPickerModel {
   const localRows: LocalPickerRow[] = [];
   for (const host of input.hosts) {
@@ -224,10 +231,16 @@ export function environmentPickerModel(input: {
    * unresolved page, whose only offer is a retry that cannot succeed.
    */
   const windowRunsNothing = windowVersion === false && windowStatus === null;
+  /**
+   * No host yet is only "Personal" for an account: its configuration is the
+   * cloud's and reads without a computer. With no account it is nothing but a
+   * spinner, so the pick waits for the window's own host to name itself.
+   */
   const windowStatusKnown =
-    input.windowHostId === null ||
-    (input.hosts.some((host) => host.hostId === input.windowHostId) &&
-      (windowStatus !== null || windowRunsNothing));
+    input.windowHostId === null
+      ? (input.accountSignedIn ?? true)
+      : input.hosts.some((host) => host.hostId === input.windowHostId) &&
+        (windowStatus !== null || windowRunsNothing);
   let defaultPick = UNRESOLVED_PICK;
   if (windowStatusKnown) {
     const windowLocalPick: EnvironmentPick | null =

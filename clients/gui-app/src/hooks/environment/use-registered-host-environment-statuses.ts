@@ -45,11 +45,12 @@ export function useRegisteredHostEnvironmentStatuses(
 ): ReadonlyMap<string, EnvironmentStatusResponseV12 | null> {
   const binding = useHostBinding();
   const hostIds = useMemo(() => hosts.map((host) => host.hostId), [hosts]);
-  // The same gate `useEnvironmentStatusRead` applies: a host whose handshake
-  // does not advertise `environment.status` is never asked. Without it an
-  // older host answers every entry with `E_HOST_UNSUPPORTED`, an error no
-  // retry can clear, and the Environment page reads it as a failed settings
-  // read.
+  // A host whose handshake positively reports `environment.status` absent is
+  // never asked: it would answer every entry with `E_HOST_UNSUPPORTED`, an
+  // error no retry can clear, and the Environment page reads it as a failed
+  // settings read. `null` is NOT that answer - it means no handshake has
+  // completed yet, and this read is one of the ones that completes it, so the
+  // gate stays open and closes only on evidence.
   const versions = useHostNegotiatedMethodVersions(hostIds, METHOD);
   const combine = useCallback(
     (
@@ -72,7 +73,7 @@ export function useRegisteredHostEnvironmentStatuses(
         host.hostId,
         host.connectable &&
           binding !== null &&
-          versions.get(host.hostId) === true,
+          versions.get(host.hostId) !== false,
       ),
     ),
     combine,
