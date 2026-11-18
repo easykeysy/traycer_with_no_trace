@@ -337,7 +337,7 @@ const STRIP_KEYBINDING_IDS: ReadonlyArray<ActionId> = [
 
 // The shipped arrangement keeps both readings in the status bar, so the
 // readings row stands empty (and hidden) between the update row and the account.
-const FOOT_ORDER = ["foot-update", "side-strip-readings", "foot-account"];
+const FOOT_ORDER = ["foot-update", "side-strip-readings"];
 
 /** A host indicator with nothing lit. */
 const NO_FLAGS = {
